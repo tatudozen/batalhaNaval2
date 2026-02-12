@@ -2,9 +2,11 @@ version: '3.8'
 
 services:
   batalha-naval:
-    image: ghcr.io/${GITHUB_USERNAME}/batalha-naval:latest
-    # OU use uma registry privada:
-    # image: registry.seu-dominio.com/batalha-naval:latest
+    # Opção 1: Build local no Portainer
+    build: .
+
+    # Opção 2: Usar imagem do GitHub (descomente se preferir)
+    # image: ghcr.io/${GITHUB_USERNAME}/batalha-naval:latest
 
     container_name: batalha-naval
     restart: unless-stopped
@@ -12,43 +14,34 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - BASE_URL=https://${DOMAIN}
+      - BASE_URL=https://batnav.alquimiazen.com.br
 
     volumes:
       # Persistência do banco de dados
-      - ./data:/app/data
-      # Sessão do WhatsApp
-      - ./whatsapp-session:/app/backend/.wwebjs_auth
+      - batnav-data:/app/data
+      # Sessão do WhatsApp (persistir entre restarts)
+      - batnav-whatsapp:/app/backend/.wwebjs_auth
       # Logs
-      - ./logs:/app/backend/logs
+      - batnav-logs:/app/backend/logs
 
     networks:
-      - traefik-public
+      - AZ_Net
 
     labels:
       # Habilitar Traefik
       - "traefik.enable=true"
 
       # Rede do Traefik
-      - "traefik.docker.network=traefik-public"
-
-      # Router HTTP -> HTTPS redirect
-      - "traefik.http.routers.batalha-naval-http.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.batalha-naval-http.entrypoints=web"
-      - "traefik.http.routers.batalha-naval-http.middlewares=redirect-to-https"
+      - "traefik.docker.network=AZ_Net"
 
       # Router HTTPS
-      - "traefik.http.routers.batalha-naval.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.batalha-naval.rule=Host(`batnav.alquimiazen.com.br`)"
       - "traefik.http.routers.batalha-naval.entrypoints=websecure"
       - "traefik.http.routers.batalha-naval.tls=true"
-      - "traefik.http.routers.batalha-naval.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.batalha-naval.tls.certresolver=letsencryptresolver"
 
       # Service
       - "traefik.http.services.batalha-naval.loadbalancer.server.port=3001"
-
-      # Middleware de redirecionamento
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
 
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
@@ -57,6 +50,11 @@ services:
       retries: 3
       start_period: 40s
 
+volumes:
+  batnav-data:
+  batnav-whatsapp:
+  batnav-logs:
+
 networks:
-  traefik-public:
+  AZ_Net:
     external: true
