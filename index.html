@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batalha Naval - Centro de Testes</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  min-height: 100vh;
+  color: #e2e8f0;
+  padding: 40px 20px;
+}
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 36px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle {
+  color: #64748b;
+  margin-bottom: 40px;
+  font-size: 16px;
+}
+.section {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.section h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section p {
+  color: #64748b;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+.btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.btn-secondary {
+  background: #64748b;
+}
+.btn-secondary:hover {
+  background: #475569;
+}
+.btn-success {
+  background: #22c55e;
+}
+.btn-success:hover {
+  background: #16a34a;
+}
+.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.code {
+  background: #0f172a;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  margin: 16px 0;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+}
+.match-info {
+  background: #0f172a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  border-left: 4px solid #3b82f6;
+}
+.match-info strong {
+  color: #60a5fa;
+}
+.feature-list {
+  list-style: none;
+  padding: 0;
+}
+.feature-list li {
+  padding: 8px 0;
+  color: #94a3b8;
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+.feature-list li:before {
+  content: "✓";
+  color: #22c55e;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+#loadingMsg {
+  display: none;
+  background: #1e40af;
+  color: #93c5fd;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🚢 Batalha Naval</h1>
+  <p class="subtitle">Centro de Testes - MVP Local</p>
+
+  <!-- Teste Rápido -->
+  <div class="section">
+    <h2>🎮 Teste Rápido - Simulador de Chat</h2>
+    <p>A forma mais fácil de testar o jogo completo. Jogue contra você mesmo em uma única tela.</p>
+    <ul class="feature-list">
+      <li>Posicionamento automático de navios</li>
+      <li>Dois jogadores na mesma tela</li>
+      <li>Visualização dos tabuleiros em tempo real</li>
+      <li>Mecânica de salva funcionando</li>
+    </ul>
+    <div class="buttons">
+      <a href="/chat.html" class="btn btn-success">▶ Abrir Simulador</a>
+    </div>
+  </div>
+
+  <!-- Teste Completo -->
+  <div class="section">
+    <h2>⚔️ Teste Completo - 2 Jogadores</h2>
+    <p>Teste o fluxo completo com posicionamento manual de navios em abas separadas.</p>
+
+    <div class="buttons">
+      <button onclick="createNewMatch()" class="btn">🎲 Criar Nova Partida</button>
+    </div>
+
+    <div id="loadingMsg">Criando partida...</div>
+
+    <div id="matchDetails" style="display: none;">
+      <div class="match-info">
+        <strong>Match ID:</strong> <span id="matchId"></span>
+      </div>
+
+      <p style="margin: 16px 0; color: #94a3b8;">
+        <strong>Instruções:</strong> Abra cada link em uma aba diferente (ou em navegadores diferentes).
+        Cada jogador deve posicionar seus navios e confirmar. O sistema detecta automaticamente quando ambos estão prontos.
+      </p>
+
+      <div style="margin-bottom: 16px;">
+        <strong style="color: #94a3b8; display: block; margin-bottom: 8px;">👤 Jogador 1:</strong>
+        <div class="buttons">
+          <a id="link1" href="#" target="_blank" class="btn">Abrir Posicionamento (Jogador 1)</a>
+          <button onclick="copyLink('link1')" class="btn btn-secondary">📋 Copiar Link</button>
+        </div>
+      </div>
+
+      <div>
+        <strong style="color: #94a3b8; display: block; margin-bottom: 8px;">👤 Jogador 2:</strong>
+        <div class="buttons">
+          <a id="link2" href="#" target="_blank" class="btn">Abrir Posicionamento (Jogador 2)</a>
+          <button onclick="copyLink('link2')" class="btn btn-secondary">📋 Copiar Link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API -->
+  <div class="section">
+    <h2>🔧 Testar API Diretamente</h2>
+    <p>Exemplos de comandos para testar a API via terminal.</p>
+
+    <strong style="color: #94a3b8; display: block; margin-top: 16px;">Criar partida:</strong>
+    <div class="code">curl -X POST http://localhost:3001/api/matches</div>
+
+    <strong style="color: #94a3b8; display: block; margin-top: 16px;">Ver status dos jogadores:</strong>
+    <div class="code">curl http://localhost:3001/api/matches/MATCH_ID/players</div>
+
+    <strong style="color: #94a3b8; display: block; margin-top: 16px;">Testar coordenada inválida:</strong>
+    <div class="code">// Abra o chat e digite: Atirar Z99</div>
+  </div>
+
+  <!-- Features -->
+  <div class="section">
+    <h2>✅ Features Implementadas</h2>
+    <ul class="feature-list">
+      <li>Engine completa de jogo (tiros, salva, vitória)</li>
+      <li>Validação robusta de coordenadas (A-O, 1-15)</li>
+      <li>Posicionamento manual e automático de navios</li>
+      <li>Sistema de tokens únicos por jogador</li>
+      <li>Polling automático para status dos jogadores</li>
+      <li>Mensagens de erro específicas e claras</li>
+      <li>15 navios: 1 porta-aviões, 2 cruzadores, 3 destroyers, 4 submarinos, 5 hidroaviões</li>
+      <li>Mecânica de salva: 3 tiros extras ao acertar</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+async function createNewMatch() {
+  const loadingMsg = document.getElementById('loadingMsg');
+  const matchDetails = document.getElementById('matchDetails');
+
+  loadingMsg.style.display = 'block';
+  matchDetails.style.display = 'none';
+
+  try {
+    const response = await fetch('/api/matches', { method: 'POST' });
+    const data = await response.json();
+
+    document.getElementById('matchId').textContent = data.matchId;
+    document.getElementById('link1').href = data.links.player1;
+    document.getElementById('link2').href = data.links.player2;
+
+    loadingMsg.style.display = 'none';
+    matchDetails.style.display = 'block';
+  } catch (err) {
+    loadingMsg.textContent = 'Erro ao criar partida: ' + err.message;
+    loadingMsg.style.background = '#7f1d1d';
+    loadingMsg.style.color = '#fca5a5';
+  }
+}
+
+function copyLink(elementId) {
+  const link = document.getElementById(elementId).href;
+  navigator.clipboard.writeText(link).then(() => {
+    alert('Link copiado!');
+  });
+}
+</script>
+</body>
+</html>

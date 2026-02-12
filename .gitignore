@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# WhatsApp session
+.wwebjs_auth/
+whatsapp-session/
+whatsapp-qr.png
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+
+# Docker volumes
+batalha.tar.gz
+batalhaNaval2.tar.gz

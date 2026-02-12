@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batalha Naval - Chat Simulado</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="engine/gameEngine.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useMemo, useRef, useEffect } = React;
+const Engine = BatalhaNavalEngine;
+
+const CELL_SIZE = 28;
+const GRID = Engine.GRID_SIZE;
+const COLS_STR = Engine.COLS;
+
+// ============================================================
+// MINI GRID COMPONENT
+// ============================================================
+
+function MiniGrid({ grid, type, onCellClick, label, showCoords }) {
+  const colorMap = type === 'attack' ? {
+    null: '#1e293b', agua: '#334155', acertou: '#dc2626', afundou: '#7f1d1d',
+  } : {
+    null: '#1e293b', ship: '#475569', hit: '#dc2626', sunk: '#7f1d1d', miss: '#334155',
+  };
+
+  const iconMap = type === 'attack' ? {
+    null: '', agua: '·', acertou: '✕', afundou: '✕',
+  } : {
+    null: '', ship: '■', hit: '✕', sunk: '✕', miss: '·',
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+      <div style={{ display: 'inline-block' }}>
+        {/* Col headers */}
+        <div style={{ display: 'flex' }}>
+          <div style={{ width: 20 }} />
+          {COLS_STR.split('').map((c) => (
+            <div key={c} style={{ width: CELL_SIZE, textAlign: 'center', fontSize: 9, color: '#475569' }}>{c}</div>
+          ))}
+        </div>
+        {/* Rows */}
+        {grid.map((row, ri) => (
+          <div key={ri} style={{ display: 'flex' }}>
+            <div style={{ width: 20, fontSize: 9, color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 3 }}>{ri + 1}</div>
+            {row.map((cell, ci) => (
+              <div key={ci}
+                onClick={() => onCellClick && onCellClick(ri, ci)}
+                style={{
+                  width: CELL_SIZE, height: CELL_SIZE,
+                  background: colorMap[cell] || '#1e293b',
+                  border: '1px solid #1e293b',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: cell === 'ship' ? 8 : 10,
+                  color: cell === 'acertou' || cell === 'hit' ? '#fca5a5'
+                    : cell === 'afundou' || cell === 'sunk' ? '#f87171'
+                    : cell === 'agua' || cell === 'miss' ? '#64748b'
+                    : cell === 'ship' ? '#94a3b8' : '#475569',
+                  cursor: onCellClick ? 'crosshair' : 'default',
+                  borderRadius: 2,
+                  fontWeight: 700,
+                }}>
+                {iconMap[cell] || ''}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CHAT LOG COMPONENT
+// ============================================================
+
+function ChatLog({ messages, bottomRef }) {
+  return (
+    <div style={{
+      flex: 1, overflowY: 'auto', padding: '8px 12px',
+      background: '#0f172a', borderRadius: 6, border: '1px solid #1e293b',
+      fontSize: 13, lineHeight: 1.6, minHeight: 180, maxHeight: 300,
+    }}>
+      {messages.map((msg, i) => (
+        <div key={i} style={{ marginBottom: 4 }}>
+          <span style={{ color: msg.type === 'bot' ? '#facc15' : msg.type === 'system' ? '#64748b' : '#60a5fa', fontWeight: 600 }}>
+            {msg.type === 'bot' ? 'Bot: ' : msg.type === 'system' ? '⚙ ' : 'Você: '}
+          </span>
+          <span style={{
+            color: msg.result === 'acertou' ? '#f87171'
+              : msg.result === 'afundou' ? '#ef4444'
+              : msg.result === 'agua' ? '#94a3b8'
+              : '#e2e8f0'
+          }}>{msg.text}</span>
+        </div>
+      ))}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+
+function App() {
+  const [game, setGame] = useState(null);
+  const [chatLogs, setChatLogs] = useState({ player1: [], player2: [] });
+  const [input, setInput] = useState('');
+  const [gameOver, setGameOver] = useState(null);
+  const chatRef1 = useRef(null);
+  const chatRef2 = useRef(null);
+  const inputRef = useRef(null);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatRef1.current) chatRef1.current.scrollIntoView({ behavior: 'smooth' });
+    if (chatRef2.current) chatRef2.current.scrollIntoView({ behavior: 'smooth' });
+  }, [chatLogs]);
+
+  // Focus input on turn change
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.focus();
+  }, [game && game.currentTurn]);
+
+  const startGame = useCallback(() => {
+    const g = new Engine.BatalhaNavalGame();
+    const fleet1 = Engine.autoPlaceWithRetry(20);
+    const fleet2 = Engine.autoPlaceWithRetry(20);
+    if (!fleet1 || !fleet2) {
+      alert('Falha ao posicionar navios. Tente novamente.');
+      return;
+    }
+    g.setFleet('player1', fleet1);
+    g.setFleet('player2', fleet2);
+    setGame(g);
+    setGameOver(null);
+    setChatLogs({
+      player1: [{ type: 'system', text: 'Batalha iniciada! Você é o Jogador 1.' }],
+      player2: [{ type: 'system', text: 'Aguardando turno...' }],
+    });
+    setInput('');
+  }, []);
+
+  const addMessage = useCallback((playerId, msg) => {
+    setChatLogs((prev) => ({
+      ...prev,
+      [playerId]: [...prev[playerId], msg],
+    }));
+  }, []);
+
+  const handleShot = useCallback((row, col) => {
+    if (!game || game.status !== 'in_progress') return;
+
+    const currentPlayer = game.currentTurn;
+    const coord = Engine.toDisplay(row, col);
+
+    // Add player message
+    addMessage(currentPlayer, { type: 'player', text: 'Atirar ' + coord });
+
+    // Process shot
+    const result = game.processShot(currentPlayer, row, col);
+
+    if (result.error) {
+      addMessage(currentPlayer, { type: 'bot', text: result.error });
+      return;
+    }
+
+    // Build response message
+    var botMsg = '';
+    if (result.result === 'agua') {
+      botMsg = '💦 Água!';
+      if (result.turnState === 'IN_SALVA' && result.salvaRemaining > 0) {
+        botMsg += '\n🔥 Você ainda tem ' + result.salvaRemaining + ' tiro(s) da salva.';
+      } else {
+        botMsg += ' Fim do turno.';
+      }
+    } else if (result.result === 'acertou') {
+      botMsg = '🎯 Acertou o ' + result.shipName + '!';
+      if (result.turnState === 'IN_SALVA' && result.salvaRemaining > 0) {
+        botMsg += '\n🔥 SALVA! Restam ' + result.salvaRemaining + ' tiro(s).';
+      } else if (result.turnState === 'AWAITING_SHOT' || result.salvaRemaining === 0) {
+        botMsg += '\n⏹️ Fim do turno.';
+      }
+    } else if (result.result === 'afundou') {
+      botMsg = '💥 AFUNDOU o ' + result.shipName + '!';
+      if (result.gameOver) {
+        botMsg += '\n🏆 TODOS OS NAVIOS AFUNDADOS! VITÓRIA!';
+      } else if (result.turnState === 'IN_SALVA' && result.salvaRemaining > 0) {
+        botMsg += '\n🔥 SALVA! Restam ' + result.salvaRemaining + ' tiro(s).';
+      } else if (result.turnState === 'AWAITING_SHOT' || result.salvaRemaining === 0) {
+        botMsg += '\n⏹️ Fim do turno.';
+      }
+    }
+
+    addMessage(currentPlayer, { type: 'bot', text: botMsg, result: result.result });
+
+    if (result.gameOver) {
+      setGameOver(result.winner);
+      addMessage(result.winner, { type: 'system', text: 'VITÓRIA! Você venceu a batalha!' });
+      var loser = result.winner === 'player1' ? 'player2' : 'player1';
+      addMessage(loser, { type: 'system', text: 'Derrota. Seus navios foram todos afundados.' });
+    } else if (result.currentTurn !== currentPlayer) {
+      // Turn switched
+      addMessage(result.currentTurn, { type: 'system', text: 'Seu turno!' });
+    }
+
+    // Force re-render
+    setGame(Object.assign(Object.create(Object.getPrototypeOf(game)), game));
+    setInput('');
+  }, [game, addMessage]);
+
+  const handleCommand = useCallback((text) => {
+    if (!game || game.status !== 'in_progress') return;
+    text = text.trim();
+
+    // Parse slash commands first: /status, /mapa, etc
+    if (text.startsWith('/')) {
+      var command = text.slice(1).toLowerCase();
+
+      // /status - Show game status
+      if (command === 'status' || command === 's') {
+        var status = game.getStatus();
+        var currentPlayer = game.currentTurn;
+        var opponent = currentPlayer === 'player1' ? 'player2' : 'player1';
+        var msg = '📊 Status da Partida\n\n';
+        msg += '🛡️ Seus navios: ' + status[currentPlayer].remaining + '/' + status[currentPlayer].totalShips + '\n';
+        msg += '🎯 Navios inimigos: ' + status[opponent].remaining + '/' + status[opponent].totalShips;
+
+        // List sunk enemy ships
+        var sunkShips = status[opponent].ships.filter(function(s) { return s.sunk; });
+        if (sunkShips.length > 0) {
+          msg += '\n\n💥 Afundados: ' + sunkShips.map(function(s) { return s.name; }).join(', ');
+        }
+
+        // Show your damaged ships
+        var damagedShips = status[currentPlayer].ships.filter(function(s) { return !s.sunk && s.health < s.total; });
+        if (damagedShips.length > 0) {
+          msg += '\n\n🔥 Seus navios danificados: ' + damagedShips.map(function(s) {
+            return s.name + ' (' + s.health + '/' + s.total + ')';
+          }).join(', ');
+        }
+
+        addMessage(currentPlayer, { type: 'player', text: text });
+        addMessage(currentPlayer, { type: 'bot', text: msg });
+        return;
+      }
+
+      // /m1, /m2, /m3, /m4 - Show quadrant map
+      var quadMatch = command.match(/^m([1-4])$/);
+      if (quadMatch) {
+        var quadNum = parseInt(quadMatch[1]);
+        var attackMap = game.renderQuadrantASCII(game.currentTurn, quadNum, 'attack');
+        var defenseMap = game.renderQuadrantASCII(game.currentTurn, quadNum, 'defense');
+
+        addMessage(game.currentTurn, { type: 'player', text: text });
+        addMessage(game.currentTurn, {
+          type: 'bot',
+          text: attackMap + '\n\n' + defenseMap
+        });
+        return;
+      }
+
+      // /mapa or /m - Show help for map commands
+      if (command === 'mapa' || command === 'm') {
+        var mapHelp = '🗺️ Comando de Mapa\n\n';
+        mapHelp += 'O tabuleiro 16x16 é dividido em 4 quadrantes:\n\n';
+        mapHelp += '/m1 - Quadrante 1 (A-H, 1-8) superior esquerdo\n';
+        mapHelp += '/m2 - Quadrante 2 (I-P, 1-8) superior direito\n';
+        mapHelp += '/m3 - Quadrante 3 (A-H, 9-16) inferior esquerdo\n';
+        mapHelp += '/m4 - Quadrante 4 (I-P, 9-16) inferior direito\n\n';
+        mapHelp += 'Exemplo: /m1 mostra o quadrante 1';
+
+        addMessage(game.currentTurn, { type: 'player', text: text });
+        addMessage(game.currentTurn, { type: 'bot', text: mapHelp });
+        return;
+      }
+
+      // /ajuda or /help
+      if (command === 'ajuda' || command === 'help' || command === 'h') {
+        var helpMsg = '📖 Comandos Disponíveis:\n\n';
+        helpMsg += '🎯 Para atirar: digite apenas a coordenada\n';
+        helpMsg += '   Exemplo: A5, B10, P16\n\n';
+        helpMsg += '📊 /status ou /s - Ver status da partida\n';
+        helpMsg += '🗺️ /m1, /m2, /m3, /m4 - Ver quadrantes do mapa\n';
+        helpMsg += '🗺️ /mapa ou /m - Info sobre quadrantes\n';
+        helpMsg += '❓ /ajuda ou /h - Mostrar esta ajuda\n\n';
+        helpMsg += '💡 Dica: A salva dá 3 tiros garantidos após acertar!';
+
+        addMessage(game.currentTurn, { type: 'player', text: text });
+        addMessage(game.currentTurn, { type: 'bot', text: helpMsg });
+        return;
+      }
+
+      addMessage(game.currentTurn, { type: 'bot', text: 'Comando desconhecido: ' + text + '\nUse /ajuda para ver comandos disponíveis.' });
+      return;
+    }
+
+    // Try to parse as coordinate (direct shot)
+    var validation = Engine.validateCoordinate(text);
+    if (validation.valid) {
+      handleShot(validation.row, validation.col);
+      return;
+    }
+
+    // If not valid coordinate, show error
+    addMessage(game.currentTurn, {
+      type: 'bot',
+      text: validation.error + '\n\nDica: Digite apenas a coordenada (ex: A5) ou use /ajuda para ver comandos.'
+    });
+  }, [game, handleShot, addMessage]);
+
+  const handleGridClick = useCallback((row, col) => {
+    if (!game || game.status !== 'in_progress') return;
+    handleShot(row, col);
+  }, [game, handleShot]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && input.trim()) {
+      handleCommand(input);
+    }
+  }, [input, handleCommand]);
+
+  // Get boards for current state
+  const attackBoard1 = game ? game.getAttackBoard('player1') : Array(GRID).fill(null).map(() => Array(GRID).fill(null));
+  const attackBoard2 = game ? game.getAttackBoard('player2') : Array(GRID).fill(null).map(() => Array(GRID).fill(null));
+  const defenseBoard1 = game ? game.getDefenseBoard('player1') : Array(GRID).fill(null).map(() => Array(GRID).fill(null));
+  const defenseBoard2 = game ? game.getDefenseBoard('player2') : Array(GRID).fill(null).map(() => Array(GRID).fill(null));
+
+  const currentPlayer = game ? game.currentTurn : null;
+  const status = game ? game.getStatus() : null;
+
+  return (
+    <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#94a3b8', marginBottom: 2 }}>Batalha Naval</h1>
+          <p style={{ fontSize: 13, color: '#64748b' }}>Chat Simulado — Teste de Lógica</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {game && game.status === 'in_progress' && (
+            <div style={{
+              padding: '6px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+              background: game.turnState === 'IN_SALVA' ? '#92400e' : '#1e3a5f',
+              color: game.turnState === 'IN_SALVA' ? '#fbbf24' : '#60a5fa',
+              border: game.turnState === 'IN_SALVA' ? '1px solid #b45309' : '1px solid #1e40af',
+            }}>
+              {game.turnState === 'IN_SALVA'
+                ? 'SALVA! ' + game.salvaRemaining + ' tiro(s) — ' + (currentPlayer === 'player1' ? 'Jogador 1' : 'Jogador 2')
+                : 'Turno: ' + (currentPlayer === 'player1' ? 'Jogador 1' : 'Jogador 2')}
+            </div>
+          )}
+          <button onClick={startGame} style={{
+            background: '#1e40af', color: 'white', border: 'none',
+            borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          }}>{game ? 'Novo Jogo' : 'Iniciar Jogo'}</button>
+        </div>
+      </div>
+
+      {/* Game Over Banner */}
+      {gameOver && (
+        <div style={{
+          background: '#166534', border: '1px solid #22c55e', borderRadius: 8,
+          padding: '14px 20px', marginBottom: 16, textAlign: 'center', fontSize: 16, fontWeight: 700,
+        }}>
+          {gameOver === 'player1' ? 'Jogador 1' : 'Jogador 2'} venceu a batalha!
+        </div>
+      )}
+
+      {!game ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
+          Clique em "Iniciar Jogo" para começar. As esquadras serão posicionadas automaticamente.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          {/* Player 1 Panel */}
+          {['player1', 'player2'].map((pid) => {
+            var isActive = currentPlayer === pid && game.status === 'in_progress';
+            var playerNum = pid === 'player1' ? 1 : 2;
+            var opponentPid = pid === 'player1' ? 'player2' : 'player1';
+            var attackBoard = pid === 'player1' ? attackBoard1 : attackBoard2;
+            var defenseBoard = pid === 'player1' ? defenseBoard1 : defenseBoard2;
+            var playerStatus = status ? status[pid] : null;
+            var opponentStatus = status ? status[opponentPid] : null;
+
+            return (
+              <div key={pid} style={{
+                flex: 1, minWidth: 500,
+                border: isActive ? '2px solid #3b82f6' : '1px solid #1e293b',
+                borderRadius: 10, padding: 16, background: '#0f172a',
+                opacity: isActive || game.status === 'finished' ? 1 : 0.5,
+                transition: 'all 0.2s ease',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 600, color: isActive ? '#60a5fa' : '#475569' }}>
+                    Jogador {playerNum} {isActive ? '(seu turno)' : ''}
+                  </h2>
+                  {playerStatus && (
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      Navios: {playerStatus.remaining}/{playerStatus.totalShips} |
+                      Inimigo: {opponentStatus.remaining}/{opponentStatus.totalShips}
+                    </div>
+                  )}
+                </div>
+
+                {/* Grids side by side */}
+                <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <MiniGrid
+                    grid={defenseBoard}
+                    type="defense"
+                    label={"Seu Tabuleiro"}
+                  />
+                  <MiniGrid
+                    grid={attackBoard}
+                    type="attack"
+                    label={"Tabuleiro Inimigo (clique para atirar)"}
+                    onCellClick={isActive ? handleGridClick : null}
+                  />
+                </div>
+
+                {/* Chat */}
+                <ChatLog messages={chatLogs[pid]} bottomRef={pid === 'player1' ? chatRef1 : chatRef2} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Input */}
+      {game && game.status === 'in_progress' && (
+        <div style={{
+          marginTop: 16, display: 'flex', gap: 8, alignItems: 'center',
+          background: '#1e293b', padding: 12, borderRadius: 8,
+        }}>
+          <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>
+            {currentPlayer === 'player1' ? 'Jogador 1' : 'Jogador 2'} &gt;
+          </span>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="A5, /status, /ajuda"
+            style={{
+              flex: 1, background: '#0f172a', border: '1px solid #334155',
+              borderRadius: 6, padding: '8px 12px', color: '#e2e8f0', fontSize: 14,
+              outline: 'none',
+            }}
+          />
+          <button onClick={() => { if (input.trim()) handleCommand(input); }} style={{
+            background: '#1e40af', color: 'white', border: 'none',
+            borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: 13,
+          }}>Enviar</button>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div style={{ marginTop: 16, display: 'flex', gap: 16, fontSize: 11, color: '#64748b', flexWrap: 'wrap' }}>
+        <span>■ Navio</span>
+        <span style={{ color: '#f87171' }}>✕ Acertou</span>
+        <span>· Água</span>
+        <span style={{ color: '#ef4444' }}>✕ Afundou</span>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
