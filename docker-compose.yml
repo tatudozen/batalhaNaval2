@@ -8,8 +8,11 @@ services:
     # Opção 2: Usar imagem do GitHub (descomente se preferir)
     image: ghcr.io/tatudozen/batalha-naval:latest
 
-    container_name: batalha-naval
-    restart: unless-stopped
+    # container_name: batalha-naval # Not supported in Swarm
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
 
     environment:
       - NODE_ENV=production
