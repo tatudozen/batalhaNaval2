@@ -6,7 +6,7 @@ services:
     # build: .
 
     # Opção 2: Usar imagem do GitHub (descomente se preferir)
-    image: ghcr.io/${GITHUB_USERNAME}/batalha-naval:latest
+    image: ghcr.io/tatudozen/batalha-naval:latest
 
     container_name: batalha-naval
     restart: unless-stopped
