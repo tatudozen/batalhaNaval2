@@ -50,7 +50,7 @@ WORKDIR /app
 
 # Copiar arquivos de dependências
 COPY backend/package*.json ./backend/
-COPY engine/package*.json ./engine/
+
 
 # Instalar dependências do backend
 WORKDIR /app/backend
