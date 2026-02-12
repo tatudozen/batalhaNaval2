@@ -3,10 +3,10 @@ version: '3.8'
 services:
   batalha-naval:
     # Opção 1: Build local no Portainer
-    build: .
+    # build: .
 
     # Opção 2: Usar imagem do GitHub (descomente se preferir)
-    # image: ghcr.io/${GITHUB_USERNAME}/batalha-naval:latest
+    image: ghcr.io/${GITHUB_USERNAME}/batalha-naval:latest
 
     container_name: batalha-naval
     restart: unless-stopped
@@ -44,7 +44,7 @@ services:
       - "traefik.http.services.batalha-naval.loadbalancer.server.port=3001"
 
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -54,6 +54,7 @@ volumes:
   batnav-data:
   batnav-whatsapp:
   batnav-logs:
+
 
 networks:
   AZ_Net:
