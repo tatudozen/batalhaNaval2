@@ -43,8 +43,12 @@ app.listen(PORT, async () => {
   console.log(`📱 Chat simulado: http://localhost:${PORT}/chat.html`);
   console.log(`⚓ Posicionamento: http://localhost:${PORT}/posicionamento.html\n`);
 
-  // Inicializar WhatsApp
-  await initializeWhatsApp();
+  // Inicializar WhatsApp (desabilitar com DISABLE_WHATSAPP=true)
+  if (process.env.DISABLE_WHATSAPP !== 'true') {
+    await initializeWhatsApp();
+  } else {
+    console.log('⚠️ WhatsApp desabilitado via DISABLE_WHATSAPP=true\n');
+  }
 });
 
 // Exportar controller para uso em routes

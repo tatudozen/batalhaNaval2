@@ -22,6 +22,9 @@ whatsapp-qr.png
 .env
 .env.local
 
+# GitHub token (NUNCA commitar!)
+.github-token
+
 # OS
 .DS_Store
 Thumbs.db

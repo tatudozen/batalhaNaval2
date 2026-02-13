@@ -23,6 +23,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - BASE_URL=https://batnav.alquimiazen.com.br
+      - DISABLE_WHATSAPP=true  # Desabilitar WhatsApp temporariamente
 
     volumes:
       # Persistência do banco de dados

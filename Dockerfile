@@ -67,6 +67,10 @@ COPY . .
 RUN mkdir -p /app/backend/logs \
     && mkdir -p /app/data
 
+# Copiar e tornar executável o entrypoint
+COPY backend/docker-entrypoint.sh /app/backend/
+RUN chmod +x /app/backend/docker-entrypoint.sh
+
 # Expor porta
 EXPOSE 3001
 
@@ -78,4 +82,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
 # Comando para iniciar
-CMD ["node", "server.js"]
+CMD ["sh", "docker-entrypoint.sh"]
