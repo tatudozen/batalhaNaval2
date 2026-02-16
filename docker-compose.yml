@@ -52,12 +52,13 @@ services:
       # Service
       - "traefik.http.services.batalha-naval.loadbalancer.server.port=3001"
 
-    healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
+    # Healthcheck temporariamente desabilitado para debug
+    # healthcheck:
+    #   test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 120s
 
 volumes:
   batnav-data:
