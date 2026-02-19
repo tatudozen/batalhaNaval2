@@ -77,9 +77,9 @@ EXPOSE 3001
 # Definir working directory
 WORKDIR /app/backend
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+# Healthcheck desabilitado temporariamente
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+#     CMD node -e "require('http').get('http://localhost:3001/api/matches', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
 # Comando para iniciar
 CMD ["sh", "docker-entrypoint.sh"]
